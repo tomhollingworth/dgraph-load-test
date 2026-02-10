@@ -1,0 +1,9 @@
+type Event {
+    value: Int @search
+    person: Person @hasInverse(field: events)
+}
+
+type Person {
+    id: String! @id
+    events: [Event] @hasInverse(field: person)
+}

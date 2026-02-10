@@ -1,0 +1,160 @@
+x-common-service: &common-service
+  image: dgraph/dgraph:v25.2.0
+  cap_add:
+      - NET_RAW
+  environment:
+    - DGRAPH_ALPHA_WHITELIST=0.0.0.0:255.255.255.255
+
+services:
+  zero-0:
+    <<: *common-service
+    command: dgraph zero --my=zero-0:5080 --wal=/dgraph/zw --raft idx=1 --replicas=3 --telemetry="reports=false"
+    container_name: zero-0
+    hostname: zero-0
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    memswap_limit: 2G
+    environment:
+      - GOMEMLIMIT=1950MiB
+    ports: 
+      - "6080:6080"
+    networks:
+      - dgraph-net
+    volumes:
+      - ./container-data/zero-0:/dgraph
+  alpha-0:
+    <<: *common-service
+    command: dgraph alpha --my=alpha-0:7080 --zero=zero-0:5080,zero-1:5080,zero-2:5080 --postings=/dgraph/p --security=whitelist=0.0.0.0/0 --tmp=/dgraph/t --wal=/dgraph/w --telemetry="reports=false"
+    mem_limit: 8GB
+    environment:
+      - GOMEMLIMIT=7900MiB
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - dgraph-net
+    volumes: 
+      - ./container-data/alpha-0:/dgraph
+    ports:
+      - "7080:7080"
+      - "8080:8080"
+  zero-1:
+    <<: *common-service
+    command: dgraph zero --my=zero-1:5080 --wal=/dgraph/zw --peer=zero-0:5080 --raft idx=2 --replicas=3 --telemetry="reports=false"
+    container_name: zero-1
+    hostname: zero-1
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    memswap_limit: 2G
+    environment:
+      - GOMEMLIMIT=1950MiB
+    ports: 
+      - "6081:6080"
+    networks:
+      - dgraph-net
+    volumes:
+      - ./container-data/zero-1:/dgraph
+  alpha-1:
+    <<: *common-service
+    command: dgraph alpha --my=alpha-1:7080 --zero=zero-0:5080,zero-1:5080,zero-2:5080  --postings=/dgraph/p --security=whitelist=0.0.0.0/0 --tmp=/dgraph/t --wal=/dgraph/w --telemetry="reports=false"
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+    environment:
+      GOMEMLIMIT: 7800MiB
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./container-data/alpha-1:/dgraph
+    ports:
+      - "7081:7080"
+      - "8081:8080"
+    networks:
+      - dgraph-net
+  zero-2:
+    <<: *common-service
+    command: dgraph zero --my=zero-2:5080 --wal=/dgraph/zw --peer=zero-0:5080 --raft idx=3 --replicas=3 --telemetry="reports=false"
+    container_name: zero-2
+    hostname: zero-2
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    memswap_limit: 2G
+    environment:
+      - GOMEMLIMIT=1950MiB
+    ports: 
+      - "6082:6080"
+    networks:
+      - dgraph-net
+    volumes:
+      - ./container-data/zero-2:/dgraph
+  alpha-2:
+    <<: *common-service
+    command: dgraph alpha --my=alpha-2:7080 --zero=zero-0:5080,zero-1:5080,zero-2:5080 --postings=/dgraph/p --security=whitelist=0.0.0.0/0 --tmp=/dgraph/t --wal=/dgraph/w --telemetry="reports=false"
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+    environment:
+      - GOMEMLIMIT=7900MiB
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./container-data/alpha-2:/dgraph
+    ports:
+      - "7082:7080"
+      - "8082:8080"
+    networks:
+      - dgraph-net
+  prometheus:
+    image: prom/prometheus:v3.7.3
+    volumes:
+      - ./container-data/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./container-data/prometheus/data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - dgraph-net
+  grafana:
+    image: grafana/grafana:12.3.0
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=yesoreyeram-infinity-datasource
+    volumes:
+      - ./container-data/grafana/grafana:/var/lib/grafana
+      - ./container-data/grafana/datasource-provisioning.yml:/etc/grafana/provisioning/datasources/datasource-provisioning.yml:ro
+      - ./container-data/grafana/dashboard-provisioning.yml:/etc/grafana/provisioning/dashboards/dashboard-provisioning.yml:ro
+      - ./container-data/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - dgraph-net
+  tempo:
+    image: grafana/tempo:2.7.1
+    command: [ "-config.file=/etc/tempo.yaml" ]
+    ports:
+      - 3200:3200  # tempo
+      - 4317:4317  # otlp grpc
+      - 4318:4318  # otlp http
+    networks:
+      - dgraph-net
+    volumes:
+      - ./container-data/tempo/tempo.yaml:/etc/tempo.yaml
+      - ./container-data/tempo/data/:/tmp
+networks:
+  dgraph-net:

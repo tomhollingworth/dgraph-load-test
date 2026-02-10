@@ -1,0 +1,42 @@
+global:
+  scrape_interval: 1s # Set the default scrape interval to 15 seconds.
+  evaluation_interval: 1s # Evaluate rules every 15 seconds.
+
+# A list of scrape configurations.
+scrape_configs:
+  # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
+  - job_name: 'alpha'
+
+    # Override the global default.
+    scrape_interval: 1s
+
+    # static_configs allows specifying a list of targets explicitly.
+    static_configs:
+      - targets: ['alpha-0:8080', 'alpha-1:8080', 'alpha-2:8080'] # The Prometheus server's own metrics endpoint.
+
+  - job_name: 'zero'
+
+    # Override the global default.
+    scrape_interval: 1s
+
+    # static_configs allows specifying a list of targets explicitly.
+    static_configs:
+      - targets: ['zero-0:6080', 'zero-1:6080', 'zero-2:6080'] # The Prometheus server's own metrics endpoint.
+
+  - job_name: 'scenario'
+
+    # Override the global default.
+    scrape_interval: 1s
+
+    # static_configs allows specifying a list of targets explicitly.
+    static_configs:
+      - targets: ['host.docker.internal:3020'] # The Prometheus server's own metrics endpoint.
+
+  - job_name: 'host'
+
+    # Override the global default.
+    scrape_interval: 1s
+
+    # static_configs allows specifying a list of targets explicitly.
+    static_configs:
+      - targets: ['host.docker.internal:9100'] # The Prometheus server's own metrics endpoint.

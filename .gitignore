@@ -1,0 +1,11 @@
+__debug*
+error-*.log
+container-data/alpha-0
+container-data/alpha-1
+container-data/alpha-2
+container-data/zero-0
+container-data/zero-1
+container-data/zero-2
+container-data/prometheus/data
+container-data/tempo/data
+container-data/grafana/grafana
