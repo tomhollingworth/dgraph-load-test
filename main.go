@@ -32,13 +32,36 @@ var (
 	servers        = []string{"http://localhost:8080", "http://localhost:8081", "http://localhost:8082"}
 	missingCountMu = sync.Mutex{}
 	missingCount   = map[string]int{} // Tracks missing event counts per server for reporting.
+
+	// Custom HTTP client per server for increased connection limits
+	httpClients = make([]*http.Client, len(servers))
 )
 
+// buildHTTPClient creates a custom HTTP client with sensible defaults for load testing.
+// This addresses the default Go HTTP client's limited connection pool (MaxIdleConnsPerHost = 2).
+func buildHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			MaxIdleConns:        100,
+			MaxIdleConnsPerHost: 100,
+			MaxConnsPerHost:     100,
+			IdleConnTimeout:     90 * time.Second,
+			DisableCompression:  false,
+		},
+	}
+}
+
 func main() {
-	// One GraphQL client per server.
+	// Initialize custom HTTP clients per server for increased connection limits
+	for i := range httpClients {
+		httpClients[i] = buildHTTPClient()
+	}
+
+	// One GraphQL client per server, using the custom HTTP clients.
 	clients := []*graphql.Client{}
 	for i := range servers {
-		clients = append(clients, graphql.NewClient(fmt.Sprintf("%s/graphql", servers[i]), nil))
+		clients = append(clients, graphql.NewClient(fmt.Sprintf("%s/graphql", servers[i]), httpClients[i]))
 	}
 
 	ctx := context.Background()
